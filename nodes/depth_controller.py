@@ -6,7 +6,8 @@ Its output is a thrust command to the BlueROV's actuators.
 """
 
 import rclpy
-from hippo_msgs.msg import ActuatorSetpoint, DepthStamped, Float64Stamped
+from hippo_msgs.msg import DepthStamped, Float64Stamped
+from hippo_conrtol_msgs.msg import ActuatorSetpoint
 from rclpy.node import Node
 
 
