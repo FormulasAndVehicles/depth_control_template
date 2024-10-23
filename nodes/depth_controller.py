@@ -6,7 +6,8 @@ Its output is a thrust command to the BlueROV's actuators.
 """
 
 import rclpy
-from hippo_msgs.msg import ActuatorSetpoint, DepthStamped, Float64Stamped
+from hippo_control_msgs.msg import ActuatorSetpoint
+from hippo_msgs.msg import DepthStamped, Float64Stamped
 from rclpy.node import Node
 
 
@@ -54,7 +55,7 @@ class DepthControlNode(Node):
         # stamp of `depth_msg` because the control output corresponds to this
         # point in time. Both choices are meaningful.
         # option 1:
-        # now = self.get_clock().now()
+        # timestamp = self.get_clock().now()
         # option 2:
         timestamp = rclpy.time.Time.from_msg(depth_msg.header.stamp)
         self.publish_vertical_thrust(thrust=thrust, timestamp=timestamp)
