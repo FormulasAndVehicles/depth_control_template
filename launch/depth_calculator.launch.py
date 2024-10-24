@@ -14,17 +14,16 @@ def generate_launch_description() -> LaunchDescription:
     arg = DeclareLaunchArgument('use_sim_time')
     launch_description.add_action(arg)
 
-    action = (
-        Node(
-            executable='depth_calculator.py',
-            package='depth_control',
-            namespace=LaunchConfiguration('vehicle_name'),
-            parameters=[
-                {
-                    'use_sim_time': LaunchConfiguration('use_sim_time'),
-                },
-            ],
-        ),
+    action = Node(
+        executable='depth_calculator.py',
+        package='depth_control',
+        namespace=LaunchConfiguration('vehicle_name'),
+        parameters=[
+            {
+                'use_sim_time': LaunchConfiguration('use_sim_time'),
+            },
+        ],
     )
+
     launch_description.add_action(action)
     return launch_description
