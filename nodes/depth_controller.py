@@ -18,6 +18,10 @@ class DepthControlNode(Node):
         self.current_setpoint = 0.0
         self.current_depth = 0.0
 
+        self.t_prev: rclpy.time.Time = self.get_clock().now()
+        self.error_integral = 0.0
+        self.error_prev = 0.0
+
         self.thrust_pub = self.create_publisher(
             msg_type=ActuatorSetpoint, topic='thrust_setpoint', qos_profile=1
         )
@@ -50,7 +54,6 @@ class DepthControlNode(Node):
             throttle_duration_sec=1,
         )
 
-        thrust = self.compute_control_output(current_depth)
         # either set the timestamp to the current time or set it to the
         # stamp of `depth_msg` because the control output corresponds to this
         # point in time. Both choices are meaningful.
@@ -58,6 +61,7 @@ class DepthControlNode(Node):
         # timestamp = self.get_clock().now()
         # option 2:
         timestamp = rclpy.time.Time.from_msg(depth_msg.header.stamp)
+        thrust = self.compute_control_output(current_depth, timestamp)
         self.publish_vertical_thrust(thrust=thrust, timestamp=timestamp)
 
     def publish_vertical_thrust(
@@ -76,9 +80,66 @@ class DepthControlNode(Node):
 
         self.thrust_pub.publish(msg)
 
-    def compute_control_output(self, current_depth: float) -> float:
-        # TODO: Apply the PID control
-        thrust_z = 0.0  # This doesn't seem right yet...
+    # t_now only needs to be added *after* the pure P control.
+    # only I and D depend on time. For reliable results, the time should be
+    # based on the input message stamp.
+    def compute_control_output(
+        self, current_depth: float, t_now: rclpy.time.Time
+    ) -> float:
+        # point out the problems with I and D:
+        # D: very susceptible to noise, which puts high demands on the
+        #   smoothness of input data.
+        # I: often some integral windup leads to undesired behaviour.
+        #   mitigation strategies: limit the integral term, only add to the
+        #   integral when close to the setpoint, etc.
+        #   a lot of heuristic adapations required perform well.
+        error = self.current_setpoint - current_depth
+
+        dt = (t_now - self.t_prev).nanoseconds * 1e-9
+
+        # guard against time jumps. This will break the controller, since
+        # it takes a very long time until the integral is back close to zero.
+        if dt < 1.0:
+            self.error_integral += error * dt
+
+        # guard against to small timesteps
+        if dt > 0.01:
+            derror = (error - self.error_prev) / dt
+        else:
+            derror = 0.0
+
+        self.t_prev = t_now
+        self.error_prev = error
+
+        # huge oscillations but follows setpoint somehow. large steady state
+        # error
+        p_gain = 3.0
+        i_gain = 0.0
+        d_gain = 0.0
+
+        # huge d_gain supresses oscillations (probably not realistic for real
+        # world setups)
+        # damping causes the vehicle to move rather slowly
+        p_gain = 3.0
+        i_gain = 0.0
+        d_gain = 5.0
+
+        # huge p and d gain. looks great in the plot. Probably the real vehicle
+        # is not able to perform in this way
+        # also note that due to high p gain, the steady state error gets smaller
+        # but will only vanish for infinite p gain.
+        p_gain = 20.0
+        i_gain = 0.0
+        d_gain = 5.0
+
+        # vehicle moves rather slowly again, but due to added integral term
+        # the steady state error clearly vanishes.
+        p_gain = 3.0
+        i_gain = 1.0
+        d_gain = 5.0
+
+        u = p_gain * error + i_gain * self.error_integral + d_gain * derror
+        thrust_z = u  # This doesn't seem right yet...
         return thrust_z
 
 

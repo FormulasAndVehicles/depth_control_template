@@ -56,6 +56,7 @@ class DepthCalculator(Node):
     def pressure_to_depth(self, pressure: float) -> float:
         # TODO: implement the required depth calculation
         depth = pressure  # this does not seem to be to correct calculation
+        depth = -1.0 * (pressure - 101300) / 9810
         return depth
 
 
